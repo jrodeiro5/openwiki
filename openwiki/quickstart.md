@@ -36,10 +36,10 @@ sources:
     resource: repo://src/integrations/install/registry.ts
   - id: openwiki-source-349c953869b025f9d4935470
     resource: repo://src/platform/language.ts
-generated: { by: "openwiki/0.7.2", at: "2026-10-13T08:15:00.712Z" }
+generated: { by: "openwiki/0.7.2", at: "2026-10-22T08:09:43.930Z" }
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-13T08:15:00.712Z
+    at: 2026-10-22T08:09:43.930Z
 ---
 
 # OpenWiki Quickstart
@@ -75,16 +75,22 @@ OpenWiki is a pnpm + TypeScript project. The commands you will use most:
 
 ```sh
 pnpm install          # install dependencies
-pnpm run build        # tsc (server + client) then copy visualizer assets
+pnpm run build        # compile server + client via the typescript7 tsc binary, then copy visualizer assets
 pnpm run dev          # run the CLI from source via tsx (src/cli/cli.tsx)
 pnpm run coverage     # run the Vitest suite with coverage
 pnpm test             # typecheck + build + coverage (the full CI-equivalent gate)
 ```
 
 `pnpm run dev` executes the TypeScript entrypoint directly with `tsx`, while the
-shipped binary runs the compiled `dist/cli/cli.js`. Before opening a PR, run
-`pnpm run format`, `pnpm run lint`, and `pnpm test`; `format` and `lint` mirror
-the per-PR checks and `test` typechecks, builds, and runs Vitest with coverage.
+shipped `openwiki` binary and the `start` script run the compiled
+`dist/cli/cli.js`, so development and released behavior share the same entrypoint
+code. The `build` and `typecheck` scripts invoke the TypeScript 7 compiler via
+`node ./node_modules/typescript7/bin/tsc` (a `typescript7` npm alias pinning
+`typescript@7.0.2`, installed alongside the `typescript` 6.0.3 devDependency)
+rather than a bare `tsc`; the same binary is used for `eval:ledger:typecheck`.
+Before opening a PR, run `pnpm run format`, `pnpm run lint`, and `pnpm test`;
+`format` and `lint` mirror the per-PR checks and `test` typechecks, builds, and
+runs Vitest with coverage.
 
 To exercise the CLI against another local repository, link the package globally
 (`pnpm link --global`) or alias `openwiki` to `node /path/to/openwiki/dist/cli/cli.js`,

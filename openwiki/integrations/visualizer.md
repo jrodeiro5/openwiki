@@ -3,9 +3,6 @@ type: integration
 title: Interactive Visualizer
 description: How the `openwiki visualize` command builds a link graph from wiki Markdown and OKF frontmatter, serves a live single-page reader over loopback HTTP, and exports a self-contained static site for hosting.
 tags: [visualizer, graph, static-export, cli, server, markdown-reader]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-13T08:15:00.712Z
 sources:
   - id: openwiki-source-5b54a58d1b51cd490b0e7162
     resource: repo://package.json
@@ -19,6 +16,8 @@ sources:
     resource: repo://src/visualize/client-lib.ts
   - id: openwiki-source-610ff51ff8da46ab065496a5
     resource: repo://src/visualize/client.ts
+  - id: openwiki-source-37e0e714b8257069ec052301
+    resource: repo://src/visualize/graph-types.ts
   - id: openwiki-source-d92f623adbf6b31c3542d58d
     resource: repo://src/visualize/graph.ts
   - id: openwiki-source-b0d5ccee7e5f7532bd8ed3f5
@@ -39,7 +38,10 @@ sources:
     resource: repo://test/visualize/visualize-client-lib.test.ts
   - id: openwiki-source-42403648c3f500ce06398039
     resource: repo://tsconfig.client.json
-generated: { by: "openwiki/0.5.2", at: "2026-09-22T08:09:45.637Z" }
+generated: { by: "openwiki/0.7.2", at: "2026-10-22T08:09:43.930Z" }
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-22T08:09:43.930Z
 ---
 
 # Interactive Visualizer
@@ -72,6 +74,16 @@ both modes. It recursively collects `.md` files under the wiki root, reads each
 into a node, resolves inter-page links into directed edges, and returns a
 `WikiGraph` with a `root` basename, an ISO `generatedAt` timestamp, the sorted set
 of distinct node `types`, and the `nodes`/`edges` arrays.
+
+The graph's data shapes — `WikiMeta`, `WikiNode`, `WikiEdge`, and `WikiGraph` —
+are declared in `src/visualize/graph-types.ts`, a standalone module with no
+imports of its own. The browser client (`client.ts`, `client-lib.ts`) imports
+these types directly from `graph-types.ts`, so it never pulls in the Node.js
+graph loader and its `node:fs`/`node:path` dependencies; this keeps the browser
+bundle free of Node-only imports. `graph.ts` imports the same types from
+`graph-types.ts` and re-exports them (`export type { … } from "./graph-types.js"`)
+so Node consumers that already import the graph from `graph.ts` keep working
+unchanged.
 
 Each file becomes one `WikiNode`. Its stable `id` is the path relative to the wiki
 root with the `.md` suffix removed. `splitFrontmatter` parses the small YAML subset
@@ -279,10 +291,13 @@ Markdown and rendering in its shipped typeface.
 ## Build pipeline and assets
 
 The client TypeScript is compiled separately from the server code. The `build`
-script in `package.json` runs `tsc -p tsconfig.json`, then `tsc -p
-tsconfig.client.json` (which compiles `client.ts` and its imported `client-lib.ts`
-with DOM libs enabled), and finally `node scripts/copy-visualize-assets.cjs`. That
-last step exists because `styles.css` is a hand-authored asset TypeScript does not
+script in `package.json` runs the typescript7 compiler binary explicitly —
+`node ./node_modules/typescript7/bin/tsc -p tsconfig.json` — then the same
+binary against `tsconfig.client.json` (which compiles `client.ts` and its
+imported `client-lib.ts` with DOM libs enabled), and finally
+`node scripts/copy-visualize-assets.cjs`. Using the typescript7 binary path
+directly (rather than a bare `tsc`) pins the build to that toolchain without
+relying on it being the resolved `tsc` on `PATH`. That last step exists because `styles.css` is a hand-authored asset TypeScript does not
 emit: the copy script explicitly copies `src/visualize/styles.css` into
 `dist/visualize/styles.css` and fails the build if the source is missing, the
 `dist/visualize` directory does not exist (a sign the build did not run first), or

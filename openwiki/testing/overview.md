@@ -140,10 +140,10 @@ sources:
     resource: repo://tsconfig.json
   - id: openwiki-source-fbadcd8591b65031efaaedce
     resource: repo://vitest.config.ts
-generated: { by: "openwiki/0.7.2", at: "2026-10-13T08:15:00.712Z" }
+generated: { by: "openwiki/0.7.2", at: "2026-10-22T08:09:43.930Z" }
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-13T08:15:00.712Z
+    at: 2026-10-22T08:09:43.930Z
 ---
 
 # Testing Guide
@@ -158,9 +158,14 @@ while preserving complete failure output.
 ## Tooling
 
 - **Test runner: Vitest.** `vitest` (and `@vitest/coverage-v8`) are dev
-  dependencies; there is no separate framework. Tests import `describe`,
-  `expect`, `test`, `vi`, and the `beforeEach`/`afterEach` hooks directly from
-  `vitest`.
+  dependencies (lines 111–129 of `package.json`); there is no separate framework.
+  Tests import `describe`, `expect`, `test`, `vi`, and the `beforeEach`/`afterEach`
+  hooks directly from `vitest`. The build/typecheck scripts invoke a pinned
+  **TypeScript 7** binary (`node ./node_modules/typescript7/bin/tsc`, an
+  `npm:typescript@7.0.2` alias) rather than the `typescript` 6.0.3 that the
+  ESLint toolchain resolves — both are listed as separate devDependencies — so the
+  test gate's typecheck and build stages run under a different compiler than the
+  one linting the source.
 - **Ink component tests: ink-testing-library.** Terminal UI written with Ink is
   exercised by rendering React components with `render` from
   `ink-testing-library` and asserting on the rendered frame (`lastFrame()`).
@@ -185,19 +190,22 @@ flowchart TD
   A["pnpm test"] --> B["typecheck"]
   B --> C["build"]
   C --> D["coverage"]
-  B -.-> B1["tsc --noEmit tsconfig.json + tsconfig.client.json"]
-  C -.-> C1["tsc project build + copy-visualize-assets"]
+  B -.-> B1["tsc --noEmit tsconfig.json + tsconfig.client.json (typescript7 binary)"]
+  C -.-> C1["tsc project build + copy-visualize-assets (typescript7 binary)"]
   D -.-> D1["vitest run --coverage"]
 ```
 
 The `pnpm test` gate: typecheck, then build, then the coverage run.
 
 1. **`typecheck`** runs `tsc --noEmit` against both the server project
-   (`tsconfig.json`) and the browser/client project (`tsconfig.client.json`).
-2. **`build`** compiles both TypeScript projects and copies the visualize
-   client assets.
+   (`tsconfig.json`) and the browser/client project (`tsconfig.client.json`),
+   invoking the pinned **TypeScript 7** binary
+   (`node ./node_modules/typescript7/bin/tsc`) for each project (lines 67–68 of
+   `package.json`).
+2. **`build`** compiles both TypeScript projects (again via the `typescript7`
+   binary) and copies the visualize client assets (line 48 of `package.json`).
 3. **`coverage`** runs `vitest run --coverage`, which executes every test and
-   produces a coverage report.
+   produces a coverage report (line 51 of `package.json`).
 
 When iterating locally you usually do **not** want the whole gate. Run Vitest
 directly (`pnpm exec vitest run <path-or-pattern>`) to execute a focused slice,
@@ -261,10 +269,12 @@ the application `src/` root). Two npm scripts wrap the harness:
 - `pnpm run eval:ledger` — runs `tsx evals/ledger/run.ts`, the live
   checkpoint-replay evaluation (replays a benchmark's Git history through
   OpenWiki and grades each frozen wiki snapshot).
-- `pnpm run eval:ledger:typecheck` — runs `tsc --noEmit -p
-  evals/ledger/tsconfig.json`, the focused typecheck for the LEDGER source.
-  (A `eval:ledger:reevaluate` script re-judges a completed run without
-  re-invoking OpenWiki.)
+- `pnpm run eval:ledger:typecheck` — runs
+  `node ./node_modules/typescript7/bin/tsc --noEmit -p
+  evals/ledger/tsconfig.json`, the focused typecheck for the LEDGER source
+  (using the same pinned TypeScript 7 binary as the application gate). A
+  `eval:ledger:reevaluate` script re-judges a completed run without
+  re-invoking OpenWiki.
 
 These are separate from the application `typecheck`/`test` scripts and must
 be run explicitly when changing the LEDGER harness.
